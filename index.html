@@ -227,6 +227,90 @@
       object-position: center 40%;
     }
 
+    .slideshow-controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%);
+    }
+
+    .slideshow-btn {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.9);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      color: var(--text);
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+
+    .slideshow-btn:hover {
+      background: #fff;
+      transform: scale(1.05);
+    }
+
+    .slideshow-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .slideshow-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .slideshow-btn .icon-play,
+    .slideshow-btn .icon-pause {
+      display: block;
+    }
+
+    .slideshow-btn .icon-play[hidden],
+    .slideshow-btn .icon-pause[hidden] {
+      display: none;
+    }
+
+    .slideshow-dots {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .slideshow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: none;
+      padding: 0;
+      background: rgba(255,255,255,0.5);
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease;
+    }
+
+    .slideshow-dot:hover {
+      background: rgba(255,255,255,0.8);
+    }
+
+    .slideshow-dot.active {
+      background: #fff;
+      transform: scale(1.2);
+    }
+
+    .slideshow-dot:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+
     /* ----- Story ----- */
     .story-banner-wrap {
       width: 100%;
@@ -405,6 +489,19 @@
       <div class="slideshow-frame">
         <div class="slideshow-container" id="slideshow"></div>
         <div class="slideshow-collage" id="slideshowCollage"></div>
+        <div class="slideshow-controls">
+          <button type="button" class="slideshow-btn" id="slideshowPrev" aria-label="Previous slide">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="slideshow-dots" id="slideshowDots"></div>
+          <button type="button" class="slideshow-btn" id="slideshowPlayPause" aria-label="Pause slideshow">
+            <svg class="icon-pause" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <svg class="icon-play" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" hidden><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </button>
+          <button type="button" class="slideshow-btn" id="slideshowNext" aria-label="Next slide">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -486,6 +583,27 @@
 
       const container = document.getElementById('slideshow');
       const collageEl = document.getElementById('slideshowCollage');
+      const dotsEl = document.getElementById('slideshowDots');
+      const prevBtn = document.getElementById('slideshowPrev');
+      const nextBtn = document.getElementById('slideshowNext');
+      const playPauseBtn = document.getElementById('slideshowPlayPause');
+
+      let currentSlide = 0;
+      let showingCollage = false;
+      let timeoutId = null;
+
+      function updatePlayPauseButton() {
+        var isPaused = timeoutId === null;
+        var iconPause = playPauseBtn.querySelector('.icon-pause');
+        var iconPlay = playPauseBtn.querySelector('.icon-play');
+        if (iconPause) {
+          iconPause.style.display = isPaused ? 'none' : 'block';
+        }
+        if (iconPlay) {
+          iconPlay.style.display = isPaused ? 'block' : 'none';
+        }
+        playPauseBtn.setAttribute('aria-label', isPaused ? 'Play slideshow' : 'Pause slideshow');
+      }
 
       SLIDES.forEach((src, i) => {
         const slide = document.createElement('div');
@@ -506,30 +624,86 @@
         collageEl.appendChild(img);
       });
 
-      const slides = container.querySelectorAll('.slideshow-slide');
+      SLIDES.forEach((_, i) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = 'slideshow-dot' + (i === 0 ? ' active' : '');
+        dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+        dot.dataset.index = String(i);
+        dotsEl.appendChild(dot);
+      });
 
-      function runSlide(index) {
-        slides.forEach((s, i) => s.classList.toggle('active', i === index));
-        if (index < slides.length - 1) {
-          setTimeout(() => runSlide(index + 1), DURATIONS[index]);
-        } else {
-          setTimeout(showCollage, DURATIONS[index]);
-        }
+      const slides = container.querySelectorAll('.slideshow-slide');
+      const dots = dotsEl.querySelectorAll('.slideshow-dot');
+
+      function updateDots() {
+        dots.forEach((d, i) => d.classList.toggle('active', showingCollage ? i === SLIDES.length - 1 : i === currentSlide));
       }
 
-      function showCollage() {
+      function goToSlide(index, pause) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+        showingCollage = false;
+        collageEl.classList.remove('active');
+        slides.forEach((s, i) => s.classList.toggle('active', i === index));
+        currentSlide = index;
+        updateDots();
+        updatePlayPauseButton();
+        if (pause) return;
+        if (index < slides.length - 1) {
+          timeoutId = setTimeout(() => goToSlide(index + 1), DURATIONS[index]);
+        } else {
+          timeoutId = setTimeout(showCollage, DURATIONS[index]);
+        }
+        updatePlayPauseButton();
+      }
+
+      function showCollage(pause) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+        showingCollage = true;
         slides.forEach(s => s.classList.remove('active'));
         collageEl.classList.add('active');
-        setTimeout(restart, COLLAGE_DURATION);
+        updateDots();
+        updatePlayPauseButton();
+        if (pause) return;
+        timeoutId = setTimeout(() => goToSlide(0), COLLAGE_DURATION);
+        updatePlayPauseButton();
       }
 
-      function restart() {
-        collageEl.classList.remove('active');
-        slides[0].classList.add('active');
-        setTimeout(() => runSlide(1), DURATIONS[0]);
-      }
+      prevBtn.addEventListener('click', function() {
+        if (showingCollage) goToSlide(SLIDES.length - 1, true);
+        else if (currentSlide > 0) goToSlide(currentSlide - 1, true);
+        else showCollage(true);
+      });
+      nextBtn.addEventListener('click', function() {
+        if (showingCollage) goToSlide(0, true);
+        else if (currentSlide < SLIDES.length - 1) goToSlide(currentSlide + 1, true);
+        else showCollage(true);
+      });
+      dots.forEach((dot, i) => {
+        dot.addEventListener('click', () => goToSlide(i, true));
+      });
 
-      setTimeout(() => runSlide(1), DURATIONS[0]);
+      playPauseBtn.addEventListener('click', function() {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+          updatePlayPauseButton();
+        } else {
+          if (showingCollage) {
+            timeoutId = setTimeout(() => goToSlide(0), COLLAGE_DURATION);
+          } else {
+            goToSlide(currentSlide, false);
+            return;
+          }
+          updatePlayPauseButton();
+        }
+      });
+
+      updateDots();
+      timeoutId = setTimeout(() => goToSlide(1), DURATIONS[0]);
+      updatePlayPauseButton();
     })();
 
     (function() {
